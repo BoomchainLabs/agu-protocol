@@ -1,0 +1,536 @@
+#!/bin/bash
+
+# Create main directory
+mkdir -p agu-token-dapp
+cd agu-token-dapp
+
+# Create subdirectories
+mkdir -p components
+mkdir -p pages/api/liquidity
+mkdir -p pages/api/sol-liquidity
+mkdir -p app/trading
+mkdir -p public/assets
+mkdir -p server/adapters
+mkdir -p styles
+
+# --- 1. CONFIGURATION FILES ---
+
+# package.json (Added node-fetch for server adapters)
+cat << 'EOF' > package.json
+{
+  "name": "agu-token-dapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "13.5.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "wagmi": "^1.6.0",
+    "ethers": "^6.0.0",
+    "node-fetch": "^3.3.2",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "autoprefixer": "^10.0.0",
+    "postcss": "^8.0.0",
+    "tailwindcss": "^3.0.0"
+  }
+}
+EOF
+
+# tsconfig.json
+cat << 'EOF' > tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+EOF
+
+# tailwind.config.js
+cat << 'EOF' > tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+EOF
+
+# styles/globals.css
+cat << 'EOF' > styles/globals.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #0f0c29; 
+  background: -webkit-linear-gradient(to right, #24243e, #302b63, #0f0c29); 
+  background: linear-gradient(to right, #24243e, #302b63, #0f0c29); 
+  color: white;
+}
+EOF
+
+# --- 2. COMPONENTS ---
+
+# components/LiquidityPositionCard.tsx
+cat << 'EOF' > components/LiquidityPositionCard.tsx
+"use client";
+import React, { useMemo } from "react";
+
+export interface LiquidityCardProps {
+  tokenA: string;
+  tokenB: string;
+  feeTier: string | number;
+  positionId: string;
+  minTick: number;
+  maxTick: number;
+  currentTick?: number;
+  cardImageUrl?: string;
+}
+
+function tickToX(tick:number, minTick:number, maxTick:number, width:number){
+  const span = maxTick - minTick || 1;
+  return ((tick - minTick) / span) * width;
+}
+
+export default function LiquidityPositionCard({
+  tokenA, tokenB, feeTier, positionId, minTick, maxTick, currentTick, cardImageUrl
+}: LiquidityCardProps) {
+
+  const width = 320;
+  const height = 180;
+
+  const svgPath = useMemo(() => {
+    const x1 = tickToX(minTick, minTick, maxTick, width);
+    const x2 = tickToX(maxTick, minTick, maxTick, width);
+    const cx = (x1 + x2) / 2;
+    const y1 = 40;
+    const y2 = 140;
+    return `M ${x1} ${y1} Q ${cx} ${y2} ${x2} ${y1}`;
+  }, [minTick, maxTick]);
+
+  const leftDotX = tickToX(minTick, minTick, maxTick, width);
+  const rightDotX = tickToX(maxTick, minTick, maxTick, width);
+
+  return (
+    <div className="max-w-sm rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-purple-900 to-fuchsia-700 text-white p-5 border border-white/10">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-2xl font-semibold">{tokenA}/{tokenB}</div>
+          <div className="text-sm opacity-80 mt-1">Fee tier: {feeTier}</div>
+        </div>
+        {cardImageUrl && (
+             <img src={cardImageUrl} alt="card" className="w-14 h-14 rounded-lg opacity-90 object-cover" />
+        )}
+      </div>
+
+      <div className="mt-4 bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+        <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="block">
+          <defs>
+            <linearGradient id="g" x1="0" x2="1">
+              <stop offset="0" stopColor="#ff7ad3" stopOpacity="0.9"/>
+              <stop offset="1" stopColor="#6a00ff" stopOpacity="0.8"/>
+            </linearGradient>
+          </defs>
+
+          <path d={svgPath} stroke="url(#g)" strokeWidth={6} fill="none" strokeLinecap="round" />
+          <path d={svgPath} stroke="#ffffff22" strokeWidth={20} fill="none" strokeLinecap="round" />
+
+          <circle cx={leftDotX} cy={40} r={5} fill="#fff" stroke="#00000033" />
+          <circle cx={rightDotX} cy={40} r={5} fill="#fff" stroke="#00000033" />
+
+          {typeof currentTick === "number" && (
+            <circle cx={tickToX(currentTick, minTick, maxTick, width)} cy={60} r={4} fill="#fff8" />
+          )}
+        </svg>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-2">
+        <div className="bg-black/30 rounded-md px-3 py-2">
+          <span className="text-xs opacity-70">ID</span>
+          <div className="font-mono text-sm">{positionId}</div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1 bg-black/30 rounded-md px-3 py-2">
+            <span className="text-xs opacity-70">Min Tick</span>
+            <div className="font-mono">{minTick}</div>
+          </div>
+          <div className="flex-1 bg-black/30 rounded-md px-3 py-2">
+            <span className="text-xs opacity-70">Max Tick</span>
+            <div className="font-mono">{maxTick}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+EOF
+
+# components/LiquidityDashboard.tsx
+# FIX: Updated cardImageUrl to point to public assets
+cat << 'EOF' > components/LiquidityDashboard.tsx
+"use client";
+import React, { useEffect, useState } from "react";
+import LiquidityPositionCard from "./LiquidityPositionCard";
+
+export default function LiquidityDashboard({ wallet }: { wallet: string }) {
+  const [evmPositions, setEvmPositions] = useState<any[]>([]);
+  const [solPositions, setSolPositions] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!wallet) return;
+    fetch(`/api/liquidity/${wallet}`).then(r => r.json()).then((d)=>setEvmPositions(d || []));
+    fetch(`/api/sol-liquidity/${wallet}`).then(r => r.json()).then((d)=>setSolPositions(d || []));
+  }, [wallet]);
+
+  // Dummy data if API fails for visualization purposes
+  const dummyPositions = evmPositions.length > 0 ? evmPositions : [
+    { id: "42361", pool: { token0: { symbol: "USDe" }, token1: { symbol: "0xSwap" }, feeTier: "0.3%" }, tickLower: { tickIdx: -60000 }, tickUpper: { tickIdx: 60000 }, currentTick: 0 }
+  ];
+
+  return (
+    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {dummyPositions.map(p => (
+        <LiquidityPositionCard
+          key={p.id}
+          tokenA={p.pool?.token0?.symbol || "N/A"}
+          tokenB={p.pool?.token1?.symbol || "N/A"}
+          feeTier={p.pool?.feeTier || "0.3%"}
+          positionId={p.id}
+          minTick={Number(p.tickLower?.tickIdx ?? -60000)}
+          maxTick={Number(p.tickUpper?.tickIdx ?? 60000)}
+          currentTick={Number(p.currentTick ?? null)}
+          cardImageUrl={"/assets/card.jpeg"}
+        />
+      ))}
+
+      {solPositions.map(p => (
+        <LiquidityPositionCard
+          key={p.id}
+          tokenA={p.tokenA || p.pool?.tokenA || "SOL-token"}
+          tokenB={p.tokenB || p.pool?.tokenB || "SOL-token"}
+          feeTier={p.feeTier || "N/A"}
+          positionId={p.id}
+          minTick={p.minTick ?? -60000}
+          maxTick={p.maxTick ?? 60000}
+          cardImageUrl={"/assets/card.jpeg"}
+        />
+      ))}
+    </div>
+  );
+}
+EOF
+
+# components/SwapWidget.tsx
+cat << 'EOF' > components/SwapWidget.tsx
+"use client";
+import React, { useState } from "react";
+
+export default function SwapWidget({ chain="base" }: { chain?: "base" | "solana" }) {
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [status, setStatus] = useState("");
+
+  const handleSwap = async () => {
+    setStatus("Swapping...");
+    try {
+      const endpoint = chain === "base" ? "/api/swap" : "/api/sol-swap";
+      const res = await fetch(endpoint, {
+        method:"POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to, amount })
+      });
+      const data = await res.json();
+      console.log(data);
+      setStatus("Swap Initiated (Check Console)");
+    } catch(e) {
+      setStatus("Error");
+    }
+  };
+
+  return (
+    <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-md border border-white/10">
+      <div className="text-xl font-bold mb-4">Swap ({chain.toUpperCase()})</div>
+      <div className="space-y-3">
+        <div>
+            <label className="text-xs opacity-70 ml-1">From</label>
+            <input className="w-full p-3 rounded-xl bg-black/40 border border-white/5 focus:outline-none focus:border-purple-500" placeholder="Token Address" value={from} onChange={e=>setFrom(e.target.value)} />
+        </div>
+        <div>
+            <label className="text-xs opacity-70 ml-1">To</label>
+            <input className="w-full p-3 rounded-xl bg-black/40 border border-white/5 focus:outline-none focus:border-purple-500" placeholder="Token Address" value={to} onChange={e=>setTo(e.target.value)} />
+        </div>
+        <div>
+            <label className="text-xs opacity-70 ml-1">Amount</label>
+            <input className="w-full p-3 rounded-xl bg-black/40 border border-white/5 focus:outline-none focus:border-purple-500" placeholder="0.0" value={amount} onChange={e=>setAmount(e.target.value)} />
+        </div>
+        <button onClick={handleSwap} className="w-full py-3 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 font-bold hover:opacity-90 transition">
+            Execute Swap
+        </button>
+        {status && <div className="text-center text-sm mt-2 opacity-80">{status}</div>}
+      </div>
+    </div>
+  );
+}
+EOF
+
+# --- 3. API ROUTES ---
+
+# pages/api/liquidity/[wallet].ts
+cat << 'EOF' > pages/api/liquidity/[wallet].ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+export default async function handler(req:NextApiRequest, res:NextApiResponse){
+  const { wallet } = req.query;
+  if(!wallet) return res.status(400).json({ error: "missing wallet" });
+
+  const query = `
+    {
+      positions(where: { owner: "${String(wallet).toLowerCase()}" }) {
+        id
+        tickLower { tickIdx }
+        tickUpper { tickIdx }
+        pool { token0 { symbol } token1 { symbol } feeTier }
+      }
+    }
+  `;
+  try {
+    // Using a standard mainnet subgraph for demo
+    const r = await fetch("https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    const json = await r.json();
+    res.status(200).json(json.data?.positions || []);
+  } catch (err:any) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
+}
+EOF
+
+# pages/api/sol-liquidity/[wallet].ts
+cat << 'EOF' > pages/api/sol-liquidity/[wallet].ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+export default async function handler(req:NextApiRequest, res:NextApiResponse){
+  const { wallet } = req.query;
+  if(!wallet) return res.status(400).json({ error: "missing wallet" });
+
+  try {
+    const r = await fetch(`https://api.orca.so/v1/liquidity/user/${wallet}`);
+    const json = await r.json();
+    res.status(200).json(json);
+  } catch (err:any) {
+    // Fallback empty array for demo so UI doesn't break
+    res.status(200).json([]);
+  }
+}
+EOF
+
+# pages/api/swap.ts (New file to handle swap requests)
+cat << 'EOF' > pages/api/swap.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).end();
+  const { from, to, amount } = req.body;
+  
+  // In a real app, we would build the transaction data here using the adapter
+  res.status(200).json({ 
+    status: "mock_success",
+    message: "EVM Swap transaction built (mock)", 
+    data: { from, to, amount } 
+  });
+}
+EOF
+
+# pages/api/sol-swap.ts (New file to handle solana swap requests)
+cat << 'EOF' > pages/api/sol-swap.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") return res.status(405).end();
+  const { from, to, amount } = req.body;
+
+  // Mocking Jupiter response
+  res.status(200).json({ 
+    status: "mock_success",
+    message: "Jupiter Swap quote fetched (mock)",
+    outAmount: Number(amount) * 1.05 // Mock price impact
+  });
+}
+EOF
+
+# --- 4. SERVER ADAPTERS ---
+
+# server/adapters/base-swap-adapter.ts
+# FIX: Updated for Ethers v6 compatibility
+cat << 'EOF' > server/adapters/base-swap-adapter.ts
+import { ethers } from "ethers";
+
+export async function buildBaseSwapTx(signer: any, fromToken: string, toToken: string, amount: string) {
+  const ROUTER_ADDRESS = process.env.NEXT_PUBLIC_BASE_ROUTER_ADDRESS || "0x0000000000000000000000000000000000000000";
+  const ROUTER_ABI = [
+    "function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)"
+  ]; 
+  
+  const router = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, signer);
+  
+  // Ethers v6: Use ethers.parseUnits instead of utils
+  const amountInWei = ethers.parseUnits(amount.toString(), 18);
+
+  const tx = await router.swapExactTokensForTokens.populateTransaction(
+    amountInWei,
+    0, 
+    [fromToken, toToken],
+    await signer.getAddress(),
+    Math.floor(Date.now()/1000) + 60*10
+  );
+  return tx;
+}
+EOF
+
+# server/adapters/solana-jupiter-adapter.ts
+cat << 'EOF' > server/adapters/solana-jupiter-adapter.ts
+import fetch from "node-fetch";
+
+export async function quoteJupiterSwap(fromMint: string, toMint: string, amount: string) {
+  const endpoint = process.env.NEXT_PUBLIC_JUPITER_ENDPOINT || "https://quote-api.jup.ag/v6/quote";
+  // Using v6 quote API structure
+  const res = await fetch(`${endpoint}?inputMint=${fromMint}&outputMint=${toMint}&amount=${amount}`);
+  return res.json();
+}
+
+export async function executeJupiterSwap(transactionPayload: any) {
+  return { ok: true };
+}
+EOF
+
+# --- 5. APP PAGES ---
+
+# pages/index.tsx (Main entry point)
+cat << 'EOF' > pages/index.tsx
+import React from "react";
+import LiquidityDashboard from "../components/LiquidityDashboard";
+import SwapWidget from "../components/SwapWidget";
+import TradingChartPage from "../app/trading/TradingChartPage";
+
+export default function Home() {
+  return (
+    <div className="min-h-screen p-8 font-sans">
+      <header className="mb-10 flex items-center justify-between">
+        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
+          AGU Token DApp
+        </h1>
+        <div className="text-sm opacity-60">Connected: 0x...</div>
+      </header>
+
+      <main className="space-y-12">
+        <section>
+          <h2 className="text-2xl font-semibold mb-4">Liquidity Positions</h2>
+          {/* Passing a dummy wallet for demo purposes */}
+          <LiquidityDashboard wallet="0x1234567890123456789012345678901234567890" />
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <section className="lg:col-span-2">
+             <h2 className="text-2xl font-semibold mb-4">Market Chart</h2>
+             <div className="bg-black/20 rounded-3xl border border-white/10 overflow-hidden">
+                <TradingChartPage />
+             </div>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">Swap</h2>
+            <div className="space-y-6">
+              <SwapWidget chain="base" />
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
+EOF
+
+# app/trading/TradingChartPage.tsx
+cat << 'EOF' > app/trading/TradingChartPage.tsx
+"use client";
+import React, { useEffect } from "react";
+
+export default function TradingChartPage({ pair="SLERFUSDT" }:{ pair?: string }) {
+  useEffect(() => {
+    const existing = document.getElementById("tv-widget-script");
+    if (!existing) {
+      const s = document.createElement("script");
+      s.id = "tv-widget-script";
+      s.src = "https://s3.tradingview.com/tv.js";
+      s.async = true;
+      document.body.appendChild(s);
+    }
+  }, []);
+
+  return (
+    <div className="h-full w-full min-h-[500px]">
+      <div id="tv-widget-container" className="w-full h-full" style={{ height: 520 }}>
+        <iframe
+          title="Trading Chart"
+          src={`https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(pair)}&interval=60&hidesidetoolbar=1&theme=dark`}
+          style={{ width: "100%", height: "100%", border: 0 }}
+        />
+      </div>
+    </div>
+  );
+}
+EOF
+
+# Create README
+cat << 'EOF' > README.md
+# AGU Token DApp
+
+This is a scaffold for a multi-chain Liquidity Dashboard and DEX UI.
+
+## Setup
+1. Install dependencies: \`npm install\`
+2. Place your card image in \`public/assets/card.jpeg\`
+3. Run dev server: \`npm run dev\`
+EOF
+
+echo "Project structure created successfully."

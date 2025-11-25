@@ -1,0 +1,28 @@
+{
+  "name": "agu-token-dapp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 5000 -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start --port 5000 --hostname 0.0.0.0",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.0.15",
+    "wagmi": "^1.6.0",
+    "ethers": "^6.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.11",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "eslint": "^9.23.0",
+    "eslint-config-next": "^15.2.3",
+    "typescript": "^5.8.2"
+  }
+}
