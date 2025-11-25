@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useCallback, Suspense, dynamic } from "react";
+import React, { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import SwapWidget from "../components/SwapWidget";
 
 const LiquidityDashboard = dynamic(
