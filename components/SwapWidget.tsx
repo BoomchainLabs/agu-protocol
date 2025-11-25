@@ -1,14 +1,14 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 
-export default function SwapWidget({ chain = "base" }: { chain?: "base" | "solana" }) {
+function SwapWidget({ chain = "base" }: { chain?: "base" | "solana" }) {
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSwap = async () => {
+  const handleSwap = useCallback(async () => {
     setLoading(true);
     setStatus("Swapping...");
     try {
@@ -28,7 +28,7 @@ export default function SwapWidget({ chain = "base" }: { chain?: "base" | "solan
     } finally {
       setLoading(false);
     }
-  };
+  }, [chain, from, to, amount]);
 
   return (
     <div className="p-6 rounded-3xl bg-white/10 backdrop-blur-md border border-white/10 max-w-md">
@@ -76,3 +76,5 @@ export default function SwapWidget({ chain = "base" }: { chain?: "base" | "solan
     </div>
   );
 }
+
+export default memo(SwapWidget);

@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 
 export interface LiquidityCardProps {
   tokenA: string;
@@ -17,7 +17,7 @@ function tickToX(tick: number, minTick: number, maxTick: number, width: number) 
   return ((tick - minTick) / span) * width;
 }
 
-export default function LiquidityPositionCard({
+function LiquidityPositionCard({
   tokenA,
   tokenB,
   feeTier,
@@ -128,3 +128,5 @@ export default function LiquidityPositionCard({
     </div>
   );
 }
+
+export default memo(LiquidityPositionCard);

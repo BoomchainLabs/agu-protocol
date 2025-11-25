@@ -1,23 +1,27 @@
 "use client";
-import React, { useState } from "react";
-import LiquidityDashboard from "../components/LiquidityDashboard";
+import React, { useState, useCallback, Suspense, dynamic } from "react";
 import SwapWidget from "../components/SwapWidget";
+
+const LiquidityDashboard = dynamic(
+  () => import("../components/LiquidityDashboard"),
+  { loading: () => <div className="text-center opacity-70">Loading dashboard...</div> }
+);
 
 export default function Home() {
   const [wallet, setWallet] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [chain, setChain] = useState<"base" | "solana">("base");
 
-  const handleConnect = () => {
+  const handleConnect = useCallback(() => {
     if (wallet.trim()) {
       setIsConnected(true);
     }
-  };
+  }, [wallet]);
 
-  const handleDisconnect = () => {
+  const handleDisconnect = useCallback(() => {
     setIsConnected(false);
     setWallet("");
-  };
+  }, []);
 
   return (
     <div className="min-h-screen p-8">

@@ -7,6 +7,8 @@ export default async function handler(
   const { wallet } = req.query;
   if (!wallet) return res.status(400).json({ error: "missing wallet" });
 
+  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600");
+
   try {
     const r = await fetch(`https://api.orca.so/v1/liquidity/user/${wallet}`);
     const json = await r.json();

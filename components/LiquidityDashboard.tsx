@@ -1,29 +1,30 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo, useCallback } from "react";
 import LiquidityPositionCard from "./LiquidityPositionCard";
 
-export default function LiquidityDashboard({ wallet }: { wallet: string }) {
+function LiquidityDashboard({ wallet }: { wallet: string }) {
   const [evmPositions, setEvmPositions] = useState<any[]>([]);
   const [solPositions, setSolPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchPositions = useCallback(async () => {
     if (!wallet) {
       setLoading(false);
       return;
     }
-
-    Promise.all([
-      fetch(`/api/liquidity/${wallet}`)
-        .then((r) => r.json())
-        .then((d) => setEvmPositions(d || []))
-        .catch(() => setEvmPositions([])),
-      fetch(`/api/sol-liquidity/${wallet}`)
-        .then((r) => r.json())
-        .then((d) => setSolPositions(d || []))
-        .catch(() => setSolPositions([])),
-    ]).then(() => setLoading(false));
+    setLoading(true);
+    const [evmRes, solRes] = await Promise.all([
+      fetch(`/api/liquidity/${wallet}`).catch(() => null),
+      fetch(`/api/sol-liquidity/${wallet}`).catch(() => null),
+    ]);
+    setEvmPositions(evmRes ? await evmRes.json().catch(() => []) : []);
+    setSolPositions(solRes ? await solRes.json().catch(() => []) : []);
+    setLoading(false);
   }, [wallet]);
+
+  useEffect(() => {
+    fetchPositions();
+  }, [fetchPositions]);
 
   const dummyPositions =
     evmPositions.length > 0
@@ -77,3 +78,5 @@ export default function LiquidityDashboard({ wallet }: { wallet: string }) {
     </div>
   );
 }
+
+export default memo(LiquidityDashboard);

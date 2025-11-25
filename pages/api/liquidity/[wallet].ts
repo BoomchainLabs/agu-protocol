@@ -7,9 +7,11 @@ export default async function handler(
   const { wallet } = req.query;
   if (!wallet) return res.status(400).json({ error: "missing wallet" });
 
+  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=600");
+
   const query = `
     {
-      positions(where: { owner: "${String(wallet).toLowerCase()}" }) {
+      positions(where: { owner: "${String(wallet).toLowerCase()}" }, first: 100) {
         id
         tickLower { tickIdx }
         tickUpper { tickIdx }

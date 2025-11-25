@@ -7,6 +7,8 @@ export default async function handler(
   if (req.method !== "POST") return res.status(405).end();
   const { from, to, amount } = req.body;
 
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+
   res.status(200).json({
     status: "mock_success",
     message: "EVM Swap transaction built (mock)",
