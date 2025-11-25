@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import LiquidityDashboard from "@/components/LiquidityDashboard";
-import SwapWidget from "@/components/SwapWidget";
+import LiquidityDashboard from "../components/LiquidityDashboard";
+import SwapWidget from "../components/SwapWidget";
 
 export default function Home() {
   const [wallet, setWallet] = useState("");
